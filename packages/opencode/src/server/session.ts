@@ -15,6 +15,7 @@ import { SessionSummary } from "@/session/summary"
 import { Snapshot } from "@/snapshot"
 import { PermissionNext } from "@/permission/next"
 import { errors } from "./error"
+import { Context } from "../context"
 
 const log = Log.create({ service: "server" })
 
@@ -959,5 +960,43 @@ export const SessionRoute = new Hono()
         reply: c.req.valid("json").response,
       })
       return c.json(true)
+    },
+  )
+  .get(
+    "/session/:sessionID/context",
+    describeRoute({
+      summary: "Get session context",
+      description: "Get detailed context information for a session including token usage breakdown by component.",
+      operationId: "session.context",
+      responses: {
+        200: {
+          description: "Context information",
+          content: {
+            "application/json": {
+              schema: resolver(Context.Info),
+            },
+          },
+        },
+        ...errors(400, 404),
+      },
+    }),
+    validator(
+      "param",
+      z.object({
+        sessionID: z.string().meta({ description: "Session ID" }),
+      }),
+    ),
+    validator(
+      "query",
+      z.object({
+        providerID: z.string(),
+        modelID: z.string(),
+        agent: z.string().optional(),
+      }),
+    ),
+    async (c) => {
+      const { sessionID } = c.req.valid("param")
+      const { providerID, modelID, agent } = c.req.valid("query")
+      return c.json(await Context.getInfo({ sessionID, providerID, modelID, agent }))
     },
   )
